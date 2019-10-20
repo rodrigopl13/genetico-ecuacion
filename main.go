@@ -22,6 +22,7 @@ type application struct {
 	generation     *genetico.Generation
 	labelBest      *widget.Label
 	bestSolution   float64
+	bestOfAll      float64
 	plot           *plot.Plot
 	xy             plotter.XYs
 	bestChromosome []uint8
@@ -37,6 +38,7 @@ func main() {
 		generation:   &genetico.Generation{},
 		labelBest:    widget.NewLabel(fmt.Sprintf("%.3f", 0.0)),
 		bestSolution: math.MaxFloat64,
+		bestOfAll:    math.MaxFloat64,
 	}
 	g.window.SetContent(
 		widget.NewVBox(
@@ -67,12 +69,11 @@ func (a *application) startApp() {
 	a.solution.File = "image/graph.png"
 
 	a.xy = plotter.XYs{}
-	a.generation = genetico.NewGenetic(30, 3, 255, 0.5, aptFunc)
+	a.generation = genetico.NewGenetic(100, 3, 255, 0.05, aptFunc)
 	fmt.Println(a.generation.Population)
 	time.Sleep(1 * time.Second)
 	a.createGraph(0)
-	fmt.Println(a.generation.Population)
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 20; i++ {
 		a.generation = a.generation.NextGeneration()
 		fmt.Println(a.generation.Population)
 		time.Sleep(1 * time.Second)
@@ -97,7 +98,7 @@ func (a *application) createGraph(i int) {
 	}
 
 	canvas.Refresh(a.solution)
-	a.labelBest.SetText(fmt.Sprintf("%.3f", a.bestSolution))
+	a.labelBest.SetText(fmt.Sprintf("%.3f", a.bestOfAll))
 }
 
 func (a *application) getBestChromosome() {
@@ -109,9 +110,10 @@ func (a *application) getBestChromosome() {
 			minSolution = v
 		}
 	}
-	if a.bestSolution > minSolution {
+	a.bestSolution = minSolution
+	if a.bestOfAll > minSolution {
 		a.bestChromosome = a.generation.Population[index]
-		a.bestSolution = minSolution
+		a.bestOfAll = minSolution
 	}
 
 	fmt.Println("BEST >>>>>>>>>>>>", a.generation.Population[index], "distance: "+fmt.Sprintf("%.3f", minSolution))
