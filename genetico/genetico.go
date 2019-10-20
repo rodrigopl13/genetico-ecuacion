@@ -1,6 +1,7 @@
 package genetico
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"sync"
@@ -10,137 +11,144 @@ import (
 type Generation struct {
 	Population [][]uint8
 	Aptitud    []float64
-	maxNumber  int
-	percentaje float32
 }
 
 type aptFunction func(c []uint8) float64
 
-var aptFunc aptFunction
+var (
+	aptFunc           aptFunction
+	maxNumberAlelo    int
+	competePercentaje float32
+	sizeChromosome    int
+)
 
-func NewGeneration(population, sizeChromosome, maxNumber int, percentaje float32, af aptFunction) *Generation {
+func NewGenetic(
+	population,
+	sizeChromosome,
+	maxNumberAlelo int,
+	competePercentaje float32,
+	af aptFunction,
+) *Generation {
 	ng := &Generation{
 		Population: make([][]uint8, population),
 		Aptitud:    make([]float64, population),
-		maxNumber:  maxNumber,
-		percentaje: percentaje,
 	}
 	aptFunc = af
-	generateRandom(ng, sizeChromosome)
-	calculateAptitud(ng)
+	maxNumberAlelo = maxNumberAlelo
+	competePercentaje = competePercentaje
+	sizeChromosome = sizeChromosome
+
+	ng.generateRandom()
+	ng.calculateAptitud()
+
 	return ng
 }
 
-func NextGeneration(currentGeneration *Generation) *Generation {
-	population := len(currentGeneration.Population)
+func (g *Generation) NextGeneration() *Generation {
+	population := len(g.Population)
 	ng := &Generation{
 		Population: make([][]uint8, population),
 		Aptitud:    make([]float64, population),
-		maxNumber:  currentGeneration.maxNumber,
 	}
 
-	competeParents(currentGeneration, ng)
+	g.competeParents(ng)
 
-	//generateOperations(ng)
+	//g.generateOperations(ng)
 
-	calculateAptitud(ng)
+	ng.calculateAptitud()
 	return ng
 }
 
 //
-func generateRandom(g *Generation, sizeChromosome int) {
+func (g *Generation) generateRandom() {
 	var wg sync.WaitGroup
 	for i := range g.Population {
 		wg.Add(1)
-		go randomChromosome(g.Population, i, sizeChromosome, g.maxNumber, &wg)
+		go g.randomChromosome(i, &wg)
 	}
 	wg.Wait()
 }
 
-func randomChromosome(p [][]uint8, chromosome, sizeChromosome, maxNumber int, wg *sync.WaitGroup) {
+func (g *Generation) randomChromosome(chromosome int, wg *sync.WaitGroup) {
 	c := make(map[int]bool)
 	var random int
-	p[chromosome] = make([]uint8, sizeChromosome)
+	g.Population[chromosome] = make([]uint8, sizeChromosome)
 	for i := 0; i < sizeChromosome; i++ {
 		rand.Seed(time.Now().UnixNano())
-		random = rand.Intn(maxNumber) + 1
+		random = rand.Intn(maxNumberAlelo) + 1
 		for c[random] {
 			rand.Seed(time.Now().UnixNano())
-			random = rand.Intn(maxNumber) + 1
+			random = rand.Intn(maxNumberAlelo) + 1
 		}
 		c[random] = true
-		p[chromosome][i] = uint8(random)
+		g.Population[chromosome][i] = uint8(random)
 	}
 	wg.Done()
 }
 
-func competeSingle(currentGeneration, newGeneration *Generation) {
+func (g *Generation) competeSingle(currentGeneration, newGeneration *Generation) {
 	population := len(currentGeneration.Population)
 	var wg sync.WaitGroup
 
 	for i := 0; i < population; i++ {
 		wg.Add(1)
-		go reproduceSingleChromosome(currentGeneration, newGeneration, i, currentGeneration.percentaje, &wg)
+		go g.reproduceSingleChromosome(newGeneration, i, &wg)
 	}
 
 	wg.Wait()
 }
 
-func reproduceSingleChromosome(
-	currentGeneration,
+func (g *Generation) reproduceSingleChromosome(
 	newGeneration *Generation,
 	position int,
-	percentaje float32,
 	wg *sync.WaitGroup,
 ) {
-	population := len(currentGeneration.Population)
-	p := float32(population) * percentaje
+	population := len(g.Population)
+	p := float32(population) * competePercentaje
 	bestApt := math.MaxFloat64
 	var randomIndex, minIndex int
 	for i := 0; i < int(p); i++ {
 		rand.Seed(time.Now().UnixNano())
 		randomIndex = rand.Intn(population)
-		if currentGeneration.Aptitud[randomIndex] < bestApt {
-			bestApt = currentGeneration.Aptitud[randomIndex]
+		if g.Aptitud[randomIndex] < bestApt {
+			bestApt = g.Aptitud[randomIndex]
 			minIndex = randomIndex
 		}
 	}
-	sizeChromosome := len(currentGeneration.Population[minIndex])
+	sizeChromosome := len(g.Population[minIndex])
 	newChromosome := make([]uint8, sizeChromosome)
-	copy(newChromosome, currentGeneration.Population[minIndex])
+	copy(newChromosome, g.Population[minIndex])
 	newGeneration.Population[position] = newChromosome
 	wg.Done()
 }
 
-func competeParents(currentGeneration, newGeneration *Generation) {
-	population := len(currentGeneration.Population)
+func (g *Generation) competeParents(newGeneration *Generation) {
+	population := len(g.Population)
 	var wg sync.WaitGroup
 
 	for i := 0; i < population; i += 2 {
 		wg.Add(1)
-		go reproduceChildsChromosome(currentGeneration, newGeneration, i, currentGeneration.percentaje, &wg)
+		go g.reproduceChildsChromosome(newGeneration, i, &wg)
 	}
 
 	wg.Wait()
 }
 
-func reproduceChildsChromosome(
-	currentGeneration,
+func (g *Generation) reproduceChildsChromosome(
 	newGeneration *Generation,
 	position int,
-	percentaje float32,
 	wg *sync.WaitGroup,
 ) {
-	population := len(currentGeneration.Population)
-	p := float32(population) * percentaje
+	population := len(g.Population)
+	p := float32(population) * competePercentaje
 	bestApt1 := math.MaxFloat64
 	bestApt2 := math.MaxFloat64
 	var randomIndex, min1, min2 int
 	for i := 0; i < int(p); i++ {
 		rand.Seed(time.Now().UnixNano())
 		randomIndex = rand.Intn(population)
-		if currentGeneration.Aptitud[randomIndex] < bestApt1 {
-			bestApt1 = currentGeneration.Aptitud[randomIndex]
+		if g.Aptitud[randomIndex] < bestApt1 {
+			bestApt1 = g.Aptitud[randomIndex]
 			min1 = randomIndex
 		}
 	}
@@ -148,19 +156,20 @@ func reproduceChildsChromosome(
 	for i := 0; i < int(p); i++ {
 		rand.Seed(time.Now().UnixNano())
 		randomIndex = rand.Intn(population)
-		if currentGeneration.Aptitud[randomIndex] < bestApt2 {
-			bestApt2 = currentGeneration.Aptitud[randomIndex]
+		if g.Aptitud[randomIndex] < bestApt2 {
+			bestApt2 = g.Aptitud[randomIndex]
 			min2 = randomIndex
 		}
 	}
-	r1, r2 := Cruza(currentGeneration.Population[min1], currentGeneration.Population[min2])
-	//fmt.Println("=============", r1, r2)
+	fmt.Println("============", min1 == min2)
+	r1, r2 := Cruza(g.Population[min1], g.Population[min2])
+	fmt.Println("=============", r1, r2)
 	newGeneration.Population[position] = r1
 	newGeneration.Population[position+1] = r2
 	wg.Done()
 }
 
-func generateOperations(g *Generation) {
+func (g *Generation) generateOperations() {
 	var wg sync.WaitGroup
 	countInversion := 0
 	var r int
@@ -178,7 +187,7 @@ func generateOperations(g *Generation) {
 	wg.Wait()
 }
 
-func calculateAptitud(g *Generation) {
+func (g *Generation) calculateAptitud() {
 	for i := range g.Population {
 		g.Aptitud[i] = aptFunc(g.Population[i])
 	}

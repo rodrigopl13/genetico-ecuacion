@@ -54,8 +54,6 @@ func Intercambio(a []uint8, wg *sync.WaitGroup) {
 func Cruza(c1, c2 []uint8) ([]uint8, []uint8) {
 	rand.Seed(time.Now().UnixNano())
 	slicePoint := rand.Intn(23) + 1
-	//fmt.Println("@@@@@@@@@@", slicePoint)
-	//fmt.Println("+++++++++++", c1, c2)
 	var s1, s2 string
 	for _, v := range c1 {
 		s1 += fmt.Sprintf("%08b", v)
@@ -65,8 +63,6 @@ func Cruza(c1, c2 []uint8) ([]uint8, []uint8) {
 	}
 	t1 := fmt.Sprintf("%s%s", s1[:slicePoint], s2[slicePoint:])
 	t2 := fmt.Sprintf("%s%s", s2[:slicePoint], s1[slicePoint:])
-	//fmt.Println("!!!!!!!!!", s1, s2)
-	//fmt.Println("%%%%%%%%%", t1, t2)
 	r1 := make([]uint8, len(c1))
 	r2 := make([]uint8, len(c2))
 	for i := 0; i < len(t1)/8; i++ {

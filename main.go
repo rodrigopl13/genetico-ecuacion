@@ -67,13 +67,13 @@ func (a *application) startApp() {
 	a.solution.File = "image/graph.png"
 
 	a.xy = plotter.XYs{}
-	a.generation = genetico.NewGeneration(100, 3, 255, 0.5, aptFunc)
+	a.generation = genetico.NewGenetic(30, 3, 255, 0.5, aptFunc)
 	fmt.Println(a.generation.Population)
 	time.Sleep(1 * time.Second)
 	a.createGraph(0)
 	fmt.Println(a.generation.Population)
-	for i := 0; i < 10; i++ {
-		a.generation = genetico.NextGeneration(a.generation)
+	for i := 0; i < 5; i++ {
+		a.generation = a.generation.NextGeneration()
 		fmt.Println(a.generation.Population)
 		time.Sleep(1 * time.Second)
 		a.createGraph(i + 1)
